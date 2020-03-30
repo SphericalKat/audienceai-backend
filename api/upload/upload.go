@@ -1,17 +1,22 @@
 package upload
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/ATechnoHazard/audienceai-backend/api/views"
 	"github.com/ATechnoHazard/audienceai-backend/internal/utils"
+	"github.com/ATechnoHazard/audienceai-backend/pkg/entities"
+	"github.com/ATechnoHazard/audienceai-backend/pkg/status"
 	"github.com/julienschmidt/httprouter"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 )
 
 func upVid() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Get file handle on multipart video
 		file, handler, err := r.FormFile("video")
 		fileName := r.FormValue("file_name")
 		if err != nil {
@@ -20,25 +25,95 @@ func upVid() http.HandlerFunc {
 		}
 		defer file.Close()
 
-		f, err := os.OpenFile(fmt.Sprintf("./videos/%s", handler.Filename), os.O_WRONLY|os.O_CREATE, 0744)
+		// Create file handle on local disk
+		filePath := fmt.Sprintf("./videos/%s", handler.Filename)
+		f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0744)
 		if err != nil {
 			views.Wrap(err, w)
 			return
 		}
 		defer f.Close()
 
+		// Copy multipart file to disk
 		_, err = io.Copy(f, file)
 		if err != nil {
 			views.Wrap(err, w)
 			return
 		}
 
+		// Create absolute file path
+		filePath, err = filepath.Abs(filePath)
+		if err != nil {
+			views.Wrap(err, w)
+			return
+		}
+
+		//// Send a request to the AI service
+		//reqBody, _ := jettison.Marshal(map[string]interface{}{
+		//	"video_path": filePath,
+		//	"fps": 1,
+		//})
+		//resp, err := http.Post("http://localhost:5000/process_video", "application/json", bytes.NewBuffer(reqBody))
+		//if err != nil {
+		//	views.Wrap(err, w)
+		//}
+		//defer resp.Body.Close()
+		//
+		//respBody := &views.VidServiceResponse{}
+		//if err = json.NewDecoder(resp.Body).Decode(respBody); err != nil {
+		//	views.Wrap(err, w)
+		//	return
+		//}
+
+		// Send response to client
 		msg := utils.Message(http.StatusAccepted, fmt.Sprintf("File %s uploaded successfully", fileName))
 		utils.Respond(w, msg)
 		return
 	}
 }
 
-func MakeUpload(r *httprouter.Router) {
-	r.HandlerFunc("POST", "/api/v1/upload", upVid())
+func setStat(statSvc status.StatService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		stat := &entities.Status{}
+		if err := json.NewDecoder(r.Body).Decode(stat); err != nil {
+			views.Wrap(err, w)
+			return
+		}
+
+		if err := statSvc.SetStat(stat); err != nil {
+			views.Wrap(err, w)
+			return
+		}
+
+		msg := utils.Message(http.StatusOK, "Status successfully set")
+		utils.Respond(w, msg)
+		return
+	}
+}
+
+func getStat(statSvc status.StatService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		stat := &entities.Status{}
+		if err := json.NewDecoder(r.Body).Decode(stat); err != nil {
+			views.Wrap(err, w)
+			return
+		}
+
+		stat, err := statSvc.GetStat(stat.FileName)
+		if err != nil {
+			views.Wrap(err, w)
+			return
+		}
+
+		msg := utils.Message(http.StatusOK, "Successfully fetched status for file")
+		msg["status"] = stat
+		utils.Respond(w, msg)
+		return
+	}
+}
+
+func MakeUpload(r *httprouter.Router, statSvc status.StatService) {
+	r.HandlerFunc("POST", "/api/upload", upVid())
+	r.HandlerFunc("POST", "/api/predictComplete", setStat(statSvc))
+	r.HandlerFunc("POST", "/api/getStatus", getStat(statSvc))
 }

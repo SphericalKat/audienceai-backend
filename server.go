@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/ATechnoHazard/audienceai-backend/api/upload"
 	"github.com/ATechnoHazard/audienceai-backend/internal/utils"
+	"github.com/ATechnoHazard/audienceai-backend/pkg/entities"
+	"github.com/ATechnoHazard/audienceai-backend/pkg/status"
 	"github.com/jinzhu/gorm"
 	"github.com/joho/godotenv"
 	"github.com/julienschmidt/httprouter"
@@ -49,7 +51,7 @@ func connectDb() *gorm.DB {
 		db = db.Debug()
 	}
 
-	db.AutoMigrate()
+	db.AutoMigrate(&entities.Status{})
 	return db
 }
 
@@ -57,7 +59,7 @@ func main() {
 	r := httprouter.New()
 	n := initNegroni()
 	n.UseHandler(r)
-	//db := connectDb()
+	db := connectDb()
 	base := os.Getenv("BASE_PATH")
 
 	r.HandlerFunc("GET", base+"/", func(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +67,8 @@ func main() {
 		utils.Respond(w, msg)
 	})
 
-	upload.MakeUpload(r)
+	statSvc := status.NewStatService(db)
+	upload.MakeUpload(r, statSvc)
 
 	// listen and serve on given port
 	port := os.Getenv("PORT")

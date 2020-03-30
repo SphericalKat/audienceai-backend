@@ -12,6 +12,7 @@ tmp
 .env
 videos
 .idea
+api/main
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
