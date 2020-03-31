@@ -101,6 +101,7 @@ func setStat(statSvc status.StatService) http.HandlerFunc {
 
 		statDB.EmotionScoresJson = string(emScJs)
 		statDB.NumFrames = stat.NumFrames
+		statDB.Status = "Processed"
 
 		if err := statSvc.SetStat(statDB); err != nil {
 			views.Wrap(err, w)
