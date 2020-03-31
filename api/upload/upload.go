@@ -1,17 +1,20 @@
 package upload
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+
 	"github.com/ATechnoHazard/audienceai-backend/api/views"
 	"github.com/ATechnoHazard/audienceai-backend/internal/utils"
 	"github.com/ATechnoHazard/audienceai-backend/pkg/entities"
 	"github.com/ATechnoHazard/audienceai-backend/pkg/status"
 	"github.com/julienschmidt/httprouter"
-	"io"
-	"net/http"
-	"os"
-	"path/filepath"
+	"github.com/wI2L/jettison"
 )
 
 func upVid() http.HandlerFunc {
@@ -48,22 +51,22 @@ func upVid() http.HandlerFunc {
 			return
 		}
 
-		//// Send a request to the AI service
-		//reqBody, _ := jettison.Marshal(map[string]interface{}{
-		//	"video_path": filePath,
-		//	"fps": 1,
-		//})
-		//resp, err := http.Post("http://localhost:5000/process_video", "application/json", bytes.NewBuffer(reqBody))
-		//if err != nil {
-		//	views.Wrap(err, w)
-		//}
-		//defer resp.Body.Close()
-		//
-		//respBody := &views.VidServiceResponse{}
-		//if err = json.NewDecoder(resp.Body).Decode(respBody); err != nil {
-		//	views.Wrap(err, w)
-		//	return
-		//}
+		// Send a request to the AI service
+		reqBody, _ := jettison.Marshal(map[string]interface{}{
+			"video_path": filePath,
+			"fps": 1,
+		})
+		resp, err := http.Post("http://localhost:5000/process_video", "application/json", bytes.NewBuffer(reqBody))
+		if err != nil {
+			views.Wrap(err, w)
+		}
+		defer resp.Body.Close()
+		
+		respBody := &views.VidServiceResponse{}
+		if err = json.NewDecoder(resp.Body).Decode(respBody); err != nil {
+			views.Wrap(err, w)
+			return
+		}
 
 		// Send response to client
 		msg := utils.Message(http.StatusAccepted, fmt.Sprintf("File %s uploaded successfully", fileName))
