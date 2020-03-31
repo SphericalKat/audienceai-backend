@@ -61,7 +61,7 @@ func upVid(statSvc status.StatService) http.HandlerFunc {
 			views.Wrap(err, w)
 		}
 		defer resp.Body.Close()
-		
+
 		respBody := &views.VidServiceResponse{}
 		if err = json.NewDecoder(resp.Body).Decode(respBody); err != nil {
 			views.Wrap(err, w)
@@ -92,7 +92,17 @@ func setStat(statSvc status.StatService) http.HandlerFunc {
 			return
 		}
 
-		if err := statSvc.SetStat(stat); err != nil {
+		statDB, err := statSvc.GetProcessing()
+		if err != nil {
+			views.Wrap(err, w)
+			return
+		}
+		emScJs, _ := jettison.Marshal(stat.EmotionScores)
+
+		statDB.EmotionScoresJson = string(emScJs)
+		statDB.NumFrames = stat.NumFrames
+
+		if err := statSvc.SetStat(statDB); err != nil {
 			views.Wrap(err, w)
 			return
 		}
