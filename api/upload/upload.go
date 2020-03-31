@@ -17,7 +17,7 @@ import (
 	"github.com/wI2L/jettison"
 )
 
-func upVid() http.HandlerFunc {
+func upVid(statSvc status.StatService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get file handle on multipart video
 		file, handler, err := r.FormFile("video")
@@ -64,6 +64,15 @@ func upVid() http.HandlerFunc {
 		
 		respBody := &views.VidServiceResponse{}
 		if err = json.NewDecoder(resp.Body).Decode(respBody); err != nil {
+			views.Wrap(err, w)
+			return
+		}
+
+		if err := statSvc.SetStat(&entities.Status{
+			FilePath: filePath,
+			FileName: fileName,
+			Status:   "Processing",
+		}); err != nil {
 			views.Wrap(err, w)
 			return
 		}
@@ -116,7 +125,7 @@ func getStat(statSvc status.StatService) http.HandlerFunc {
 }
 
 func MakeUpload(r *httprouter.Router, statSvc status.StatService) {
-	r.HandlerFunc("POST", "/api/upload", upVid())
+	r.HandlerFunc("POST", "/api/upload", upVid(statSvc))
 	r.HandlerFunc("POST", "/api/predictComplete", setStat(statSvc))
 	r.HandlerFunc("POST", "/api/getStatus", getStat(statSvc))
 }
