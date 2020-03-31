@@ -54,7 +54,7 @@ func upVid(statSvc status.StatService) http.HandlerFunc {
 		// Send a request to the AI service
 		reqBody, _ := jettison.Marshal(map[string]interface{}{
 			"video_path": filePath,
-			"fps": 1,
+			"fps":        1,
 		})
 		resp, err := http.Post("http://localhost:5000/process_video", "application/json", bytes.NewBuffer(reqBody))
 		if err != nil {
@@ -97,7 +97,7 @@ func setStat(statSvc status.StatService) http.HandlerFunc {
 			views.Wrap(err, w)
 			return
 		}
-		emScJs, _ := jettison.Marshal(stat.EmotionScores)
+		emScJs, _ := jettison.Marshal(&entities.EmotionData{Data: stat.EmotionScores})
 
 		statDB.EmotionScoresJson = string(emScJs)
 		statDB.NumFrames = stat.NumFrames

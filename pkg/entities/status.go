@@ -8,3 +8,7 @@ type Status struct {
 	NumFrames         int         `json:"num_frames"`
 	EmotionScores     [][]float64 `json:"emotion_scores" gorm:"-"`
 }
+
+type EmotionData struct {
+	Data [][]float64 `json:"data"`
+}
